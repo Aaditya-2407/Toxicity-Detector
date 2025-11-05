@@ -1,0 +1,103 @@
+{% extends "_base.html" %}
+
+{% block content %}
+    <div class="card my-4 bg-white shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">🚀 Demo Helper</h5>
+            <p class="card-text">Click a button to instantly test a comment.</p>
+            <button class="btn btn-success" onclick="setComment('This is a wonderful and insightful post, thank you for sharing!')">
+                Test Positive Comment
+            </button>
+            <button class="btn btn-danger" onclick="setComment('You are an idiot and your ideas are worthless.')">
+                Test Toxic Comment
+            </button>
+        </div>
+    </div>
+
+    <div class="card my-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Submit a new comment, {{ current_user.username }}!</h5>
+            <form id="comment-form" method="post" novalidate>
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    {{ form.comment.label(class="form-label") }}
+                    <textarea id="comment-textarea" name="comment" class="form-control" rows="3"></textarea>
+                </div>
+                <button type="submit" id="submit-button" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <h3 class="mt-5">Comments Feed</h3>
+    <div id="comments-feed">
+        {% for comment in comments %}
+        <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+               <p class="card-text">"{{ comment.body }}"</p>
+               <footer class="blockquote-footer d-flex justify-content-between align-items-center">
+                   <span><strong>{{ comment.author.username }}</strong> on {{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                   <span class="badge rounded-pill text-bg-warning">Toxicity: {{ "%.2f"|format(comment.toxicity_score) }}</span>
+               </footer>
+            </div>
+        </div>
+        {% else %}
+        <p id="no-comments-msg">No comments yet. Be the first!</p>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Part 1: Demo Helper
+    function setComment(text) {
+        document.getElementById('comment-textarea').value = text;
+    }
+
+    // Part 2: AJAX for instant, "aesthetic" form submission
+    document.getElementById('comment-form').addEventListener('submit', function(event) {
+        event.preventDefault(); // Stop the page from reloading
+        
+        const form = event.target;
+        const formData = new FormData(form);
+        const submitButton = document.getElementById('submit-button');
+        const originalButtonText = submitButton.innerHTML;
+        
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Scoring...`;
+
+        fetch("{{ url_for('main.score_comment') }}", {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Create the new comment card HTML
+                const newCommentHtml = `
+                <div class="card mb-3 shadow-sm border-primary" style="animation: fadeIn 0.5s;">
+                    <div class="card-body">
+                       <p class="card-text">"${data.comment.body}"</p>
+                       <footer class="blockquote-footer d-flex justify-content-between align-items-center">
+                           <span><strong>${data.comment.author}</strong> ${data.comment.timestamp}</span>
+                           <span class="badge rounded-pill text-bg-warning">Toxicity: ${data.comment.score.toFixed(2)}</span>
+                       </footer>
+                    </div>
+                </div>`;
+                
+                document.getElementById('comments-feed').insertAdjacentHTML('afterbegin', newCommentHtml);
+                
+                const noCommentsMsg = document.getElementById('no-comments-msg');
+                if (noCommentsMsg) noCommentsMsg.remove();
+                
+                form.reset();
+            } else {
+                alert(data.error || 'An error occurred.');
+            }
+        })
+        .finally(() => {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        });
+    });
+</script>
+{% endblock %}

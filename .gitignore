@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Database
+app.db
+
+# Large Model Files
+app/toxic_bert/model_files/
+
+# IDE files
+.vscode/
+.idea/
+
+# Environment
+.env
