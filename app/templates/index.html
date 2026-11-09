@@ -1,103 +1,477 @@
 {% extends "_base.html" %}
 
 {% block content %}
-    <div class="card my-4 bg-white shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title">🚀 Demo Helper</h5>
-            <p class="card-text">Click a button to instantly test a comment.</p>
-            <button class="btn btn-success" onclick="setComment('This is a wonderful and insightful post, thank you for sharing!')">
-                Test Positive Comment
-            </button>
-            <button class="btn btn-danger" onclick="setComment('You are an idiot and your ideas are worthless.')">
-                Test Toxic Comment
-            </button>
-        </div>
+
+{# ── Toxicity score helpers (Jinja, server-side) ──────────────────────────── #}
+{% macro badge_class(score) %}{% if score < 0.4 %}safe{% elif score < 0.7 %}caution{% else %}danger{% endif %}{% endmacro %}
+{% macro badge_label(score) %}{% if score < 0.4 %}Safe{% elif score < 0.7 %}Caution{% else %}Toxic{% endif %}{% endmacro %}
+
+<div class="row g-4">
+
+  {# ── Left column: submit form ──────────────────────────────────────────── #}
+  <div class="col-lg-4">
+    {# Demo shortcuts #}
+    <div class="mb-3">
+      <p class="section-label mb-2">Test examples</p>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn-demo"
+          onclick="setDemo('Great analysis — this really helped me understand the topic.')">
+          ✅ Positive
+        </button>
+        <button class="btn-demo"
+          onclick="setDemo('You are an idiot and your ideas are completely worthless.')">
+          ⚠️ Toxic
+        </button>
+        <button class="btn-demo"
+          onclick="setDemo('I will find you and make you regret this.')">
+          🚨 Threat
+        </button>
+      </div>
     </div>
 
-    <div class="card my-4 shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title">Submit a new comment, {{ current_user.username }}!</h5>
-            <form id="comment-form" method="post" novalidate>
-                {{ form.hidden_tag() }}
-                <div class="mb-3">
-                    {{ form.comment.label(class="form-label") }}
-                    <textarea id="comment-textarea" name="comment" class="form-control" rows="3"></textarea>
-                </div>
-                <button type="submit" id="submit-button" class="btn btn-primary">Submit</button>
-            </form>
-        </div>
-    </div>
+    {# Submit card #}
+    <div class="card card--elevated">
+      <div class="card-body p-4">
+        <p class="section-label">Post a comment</p>
+        <form id="comment-form" method="post" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.comment.label(class="form-label") }}
+            <textarea id="comment-textarea" name="comment"
+                      class="form-control" rows="4"
+                      placeholder="Write something…"></textarea>
+          </div>
+          <button type="submit" id="submit-button" class="btn btn-primary w-100">
+            Analyse &amp; Post
+          </button>
+        </form>
 
-    <h3 class="mt-5">Comments Feed</h3>
-    <div id="comments-feed">
-        {% for comment in comments %}
-        <div class="card mb-3 shadow-sm">
-            <div class="card-body">
-               <p class="card-text">"{{ comment.body }}"</p>
-               <footer class="blockquote-footer d-flex justify-content-between align-items-center">
-                   <span><strong>{{ comment.author.username }}</strong> on {{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</span>
-                   <span class="badge rounded-pill text-bg-warning">Toxicity: {{ "%.2f"|format(comment.toxicity_score) }}</span>
-               </footer>
+        {# Live preview strip — hidden until user types #}
+        <div id="live-preview" class="mt-3" style="display:none;">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+              <span id="live-score-value">—</span>
+              <span id="live-score-label" class="ms-2 text-muted-sm">—</span>
             </div>
+            <span id="live-score-pct" class="text-muted-sm font-mono"></span>
+          </div>
+          {# Composite bar #}
+          <div class="score-bar-track mb-3">
+            <div id="live-score-bar" class="score-bar-fill" style="width:0%"></div>
+          </div>
+          {# Per-category mini bars #}
+          <div id="live-category-bars">
+            {% for cat in ['toxic','severe_toxic','obscene','threat','insult','identity_hate'] %}
+            <div class="category-row">
+              <span class="category-label">{{ cat.replace('_',' ') }}</span>
+              <div class="category-track">
+                <div class="category-fill" id="live-cat-{{ cat }}" style="width:0%;background:#dde1e7"></div>
+              </div>
+              <span class="category-pct" id="live-pct-{{ cat }}">—</span>
+            </div>
+            {% endfor %}
+          </div>
         </div>
-        {% else %}
-        <p id="no-comments-msg">No comments yet. Be the first!</p>
-        {% endfor %}
+      </div>
     </div>
+
+    {# Threshold legend #}
+    <div class="card mt-3">
+      <div class="card-body p-3">
+        <p class="section-label mb-2">Score thresholds</p>
+        <div class="d-flex flex-column gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="score-badge safe">0.00 – 0.40</span>
+            <span class="text-muted-sm">Safe — no flags raised</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="score-badge caution">0.40 – 0.70</span>
+            <span class="text-muted-sm">Caution — borderline content</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="score-badge danger">0.70 – 1.00</span>
+            <span class="text-muted-sm">Toxic — flagged for review</span>
+          </div>
+        </div>
+        <hr class="divider">
+        <p class="text-muted-sm mb-0">
+          Score is a weighted composite across 6 toxicity categories.
+          <a href="{{ url_for('main.leaderboard') }}">View leaderboard →</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {# ── Right column: comments feed ──────────────────────────────────────── #}
+  <div class="col-lg-8">
+
+    {# Filter bar #}
+    <div class="filter-bar">
+      <span class="text-muted-sm me-1">Filter:</span>
+      <button class="filter-btn active" data-filter="all"    onclick="applyFilter(this,'all')">All</button>
+      <button class="filter-btn"        data-filter="safe"   onclick="applyFilter(this,'safe')">Safe</button>
+      <button class="filter-btn"        data-filter="caution" onclick="applyFilter(this,'caution')">Caution</button>
+      <button class="filter-btn"        data-filter="danger" onclick="applyFilter(this,'danger')">Toxic</button>
+    </div>
+
+    <div id="comments-feed">
+      {% for comment in comments %}
+        {% set cls = badge_class(comment.toxicity_score) %}
+        <div class="card comment-card mb-3" data-toxicity="{{ cls }}">
+          <div class="card-body p-3">
+            {# Score bar across the top of the card #}
+            <div class="score-bar-track mb-3">
+              <div class="score-bar-fill {{ cls }}"
+                   style="width:{{ (comment.toxicity_score * 100)|round(1) }}%"></div>
+            </div>
+
+            <p class="comment-body">{{ comment.body }}</p>
+
+            <div class="comment-meta">
+              <span>
+                <span class="comment-author">{{ comment.author.username }}</span>
+                &nbsp;·&nbsp;
+                {{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}
+              </span>
+              <span class="score-badge {{ cls }}">
+                {{ badge_label(comment.toxicity_score) }} · {{ "%.3f"|format(comment.toxicity_score) }}
+              </span>
+            </div>
+
+            {# Category breakdown (only if sub-scores exist) #}
+            {% if comment.score_toxic is not none %}
+              {% set sub = {
+                'toxic':         comment.score_toxic,
+                'severe_toxic':  comment.score_severe_toxic,
+                'obscene':       comment.score_obscene,
+                'threat':        comment.score_threat,
+                'insult':        comment.score_insult,
+                'identity_hate': comment.score_identity_hate
+              } %}
+              <button class="radar-toggle-btn" onclick="toggleBreakdown(this)">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Show breakdown
+              </button>
+              <div class="breakdown" style="display:none">
+                <div class="category-bars mt-2">
+                  {% for cat, val in sub.items() %}
+                  {% set pct = (val * 100)|round(1) %}
+                  {% set cat_cls = 'safe' if val < 0.4 else ('caution' if val < 0.7 else 'danger') %}
+                  <div class="category-row">
+                    <span class="category-label">{{ cat.replace('_',' ') }}</span>
+                    <div class="category-track">
+                      <div class="category-fill {{ cat_cls }}" style="width:{{ pct }}%"></div>
+                    </div>
+                    <span class="category-pct">{{ pct }}%</span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {# Radar chart for this comment #}
+                <div class="radar-container">
+                  <canvas class="radar-canvas"
+                    data-scores='{{ [
+                      comment.score_toxic,
+                      comment.score_severe_toxic,
+                      comment.score_obscene,
+                      comment.score_threat,
+                      comment.score_insult,
+                      comment.score_identity_hate
+                    ] | tojson }}'></canvas>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="text-center py-5" id="no-comments-msg">
+          <p class="text-muted-sm">No comments yet — post the first one.</p>
+        </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
 {% endblock %}
+
 
 {% block scripts %}
 <script>
-    // Part 1: Demo Helper
-    function setComment(text) {
-        document.getElementById('comment-textarea').value = text;
-    }
+// ── Utilities ────────────────────────────────────────────────────────────────
+function thresholdClass(score) {
+  if (score < 0.4) return 'safe';
+  if (score < 0.7) return 'caution';
+  return 'danger';
+}
+function thresholdLabel(score) {
+  if (score < 0.4) return 'Safe';
+  if (score < 0.7) return 'Caution';
+  return 'Toxic';
+}
+function thresholdColor(score) {
+  if (score < 0.4) return '#1a9e5c';
+  if (score < 0.7) return '#d4830a';
+  return '#d93939';
+}
+// category fill colour (uses CSS var — must match style.css)
+function catColor(val) {
+  if (val < 0.4) return '#1a9e5c';
+  if (val < 0.7) return '#d4830a';
+  return '#d93939';
+}
 
-    // Part 2: AJAX for instant, "aesthetic" form submission
-    document.getElementById('comment-form').addEventListener('submit', function(event) {
-        event.preventDefault(); // Stop the page from reloading
-        
-        const form = event.target;
-        const formData = new FormData(form);
-        const submitButton = document.getElementById('submit-button');
-        const originalButtonText = submitButton.innerHTML;
-        
-        submitButton.disabled = true;
-        submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Scoring...`;
+// ── Demo helper ──────────────────────────────────────────────────────────────
+function setDemo(text) {
+  document.getElementById('comment-textarea').value = text;
+  document.getElementById('comment-textarea').dispatchEvent(new Event('input'));
+}
 
-        fetch("{{ url_for('main.score_comment') }}", {
-            method: 'POST',
-            body: formData,
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Create the new comment card HTML
-                const newCommentHtml = `
-                <div class="card mb-3 shadow-sm border-primary" style="animation: fadeIn 0.5s;">
-                    <div class="card-body">
-                       <p class="card-text">"${data.comment.body}"</p>
-                       <footer class="blockquote-footer d-flex justify-content-between align-items-center">
-                           <span><strong>${data.comment.author}</strong> ${data.comment.timestamp}</span>
-                           <span class="badge rounded-pill text-bg-warning">Toxicity: ${data.comment.score.toFixed(2)}</span>
-                       </footer>
-                    </div>
-                </div>`;
-                
-                document.getElementById('comments-feed').insertAdjacentHTML('afterbegin', newCommentHtml);
-                
-                const noCommentsMsg = document.getElementById('no-comments-msg');
-                if (noCommentsMsg) noCommentsMsg.remove();
-                
-                form.reset();
-            } else {
-                alert(data.error || 'An error occurred.');
-            }
-        })
-        .finally(() => {
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        });
+// ── Live preview ─────────────────────────────────────────────────────────────
+const CATEGORIES = ['toxic','severe_toxic','obscene','threat','insult','identity_hate'];
+let previewTimer = null;
+
+document.getElementById('comment-textarea').addEventListener('input', function() {
+  clearTimeout(previewTimer);
+  const text = this.value.trim();
+  if (!text) {
+    document.getElementById('live-preview').style.display = 'none';
+    return;
+  }
+  previewTimer = setTimeout(() => fetchPreview(text), 400);
+});
+
+function fetchPreview(text) {
+  fetch("{{ url_for('main.preview_score') }}", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) return;
+    renderPreview(data.composite, data.scores);
+  })
+  .catch(() => {});
+}
+
+function renderPreview(composite, scores) {
+  const preview  = document.getElementById('live-preview');
+  const cls      = thresholdClass(composite);
+  const label    = thresholdLabel(composite);
+  const color    = thresholdColor(composite);
+  const pct      = (composite * 100).toFixed(1);
+
+  preview.style.display = 'block';
+  preview.className = 'mt-3 state-' + cls;
+
+  const scoreEl = document.getElementById('live-score-value');
+  scoreEl.textContent = composite.toFixed(3);
+  scoreEl.style.color = color;
+
+  document.getElementById('live-score-label').textContent = label;
+  document.getElementById('live-score-label').style.color = color;
+  document.getElementById('live-score-pct').textContent   = pct + '%';
+
+  const bar = document.getElementById('live-score-bar');
+  bar.style.width = pct + '%';
+  bar.className   = 'score-bar-fill ' + cls;
+
+  if (scores) {
+    CATEGORIES.forEach(cat => {
+      const val    = scores[cat] || 0;
+      const catPct = (val * 100).toFixed(1);
+      const fill   = document.getElementById('live-cat-' + cat);
+      const pctEl  = document.getElementById('live-pct-' + cat);
+      if (fill) { fill.style.width = catPct + '%'; fill.style.background = catColor(val); }
+      if (pctEl) pctEl.textContent = catPct + '%';
     });
+  }
+}
+
+// ── Form submit (AJAX) ────────────────────────────────────────────────────────
+document.getElementById('comment-form').addEventListener('submit', function(event) {
+  event.preventDefault();
+
+  const form       = event.target;
+  const formData   = new FormData(form);
+  const btn        = document.getElementById('submit-button');
+  const btnOriginal = btn.innerHTML;
+
+  btn.disabled  = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"
+                        role="status" aria-hidden="true"></span>Scoring…`;
+
+  fetch("{{ url_for('main.score_comment') }}", { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const c   = data.comment;
+        const cls = thresholdClass(c.score);
+        const lbl = thresholdLabel(c.score);
+        const pct = (c.score * 100).toFixed(1) + '%';
+
+        // Build category bars HTML
+        let catHtml = '';
+        let radarDataAttr = '';
+        if (c.scores) {
+          catHtml = `
+            <button class="radar-toggle-btn" onclick="toggleBreakdown(this)">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Show breakdown
+            </button>
+            <div class="breakdown" style="display:none">
+              <div class="category-bars mt-2">
+                ${CATEGORIES.map(cat => {
+                  const val    = c.scores[cat] || 0;
+                  const catPct = (val * 100).toFixed(1);
+                  const catCls = val < 0.4 ? 'safe' : (val < 0.7 ? 'caution' : 'danger');
+                  const lbl    = cat.replace('_',' ');
+                  return `<div class="category-row">
+                    <span class="category-label">${lbl}</span>
+                    <div class="category-track">
+                      <div class="category-fill ${catCls}" style="width:${catPct}%"></div>
+                    </div>
+                    <span class="category-pct">${catPct}%</span>
+                  </div>`;
+                }).join('')}
+              </div>
+              <div class="radar-container">
+                <canvas class="radar-canvas"
+                  data-scores='${JSON.stringify(CATEGORIES.map(cat => c.scores[cat] || 0))}'></canvas>
+              </div>
+            </div>`;
+        }
+
+        const html = `
+          <div class="card comment-card mb-3" data-toxicity="${cls}">
+            <div class="card-body p-3">
+              <div class="score-bar-track mb-3">
+                <div class="score-bar-fill ${cls}" style="width:0%"
+                     data-target="${pct}"></div>
+              </div>
+              <p class="comment-body">${escapeHtml(c.body)}</p>
+              <div class="comment-meta">
+                <span>
+                  <span class="comment-author">${escapeHtml(c.author)}</span>
+                  &nbsp;·&nbsp;just now
+                </span>
+                <span class="score-badge ${cls}">${lbl} · ${c.score.toFixed(3)}</span>
+              </div>
+              ${catHtml}
+            </div>
+          </div>`;
+
+        const feed = document.getElementById('comments-feed');
+        feed.insertAdjacentHTML('afterbegin', html);
+
+        // Animate the bar in after insertion
+        const newBar = feed.querySelector('[data-target]');
+        if (newBar) {
+          const target = newBar.getAttribute('data-target');
+          requestAnimationFrame(() => { newBar.style.width = target; newBar.removeAttribute('data-target'); });
+        }
+
+        // Init radar chart on the new card
+        const newCanvas = feed.querySelector('.radar-canvas:not([data-chart-init])');
+        if (newCanvas) initRadar(newCanvas);
+
+        document.getElementById('no-comments-msg')?.remove();
+        form.reset();
+        document.getElementById('live-preview').style.display = 'none';
+      } else {
+        alert(data.error || 'An error occurred.');
+      }
+    })
+    .catch(() => alert('Network error — please try again.'))
+    .finally(() => { btn.disabled = false; btn.innerHTML = btnOriginal; });
+});
+
+// ── Filter ───────────────────────────────────────────────────────────────────
+function applyFilter(el, filter) {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.remove('active','active-safe','active-caution','active-danger');
+  });
+  if (filter === 'all') {
+    el.classList.add('active');
+  } else {
+    el.classList.add('active-' + filter);
+  }
+
+  document.querySelectorAll('#comments-feed .comment-card').forEach(card => {
+    const tox = card.getAttribute('data-toxicity');
+    card.style.display = (filter === 'all' || tox === filter) ? '' : 'none';
+  });
+}
+
+// ── Breakdown toggle ─────────────────────────────────────────────────────────
+function toggleBreakdown(btn) {
+  const breakdown = btn.nextElementSibling;
+  const open      = breakdown.style.display !== 'none';
+  breakdown.style.display = open ? 'none' : 'block';
+  btn.querySelector('svg').style.transform = open ? '' : 'rotate(180deg)';
+  btn.childNodes[btn.childNodes.length - 1].textContent = open ? ' Show breakdown' : ' Hide breakdown';
+
+  if (!open) {
+    // Init radar chart if not already done
+    const canvas = breakdown.querySelector('.radar-canvas:not([data-chart-init])');
+    if (canvas) initRadar(canvas);
+  }
+}
+
+// ── Radar chart ──────────────────────────────────────────────────────────────
+const RADAR_LABELS = ['Toxic','Severe\nToxic','Obscene','Threat','Insult','Identity\nHate'];
+
+function initRadar(canvas) {
+  canvas.setAttribute('data-chart-init', '1');
+  const scores = JSON.parse(canvas.getAttribute('data-scores') || '[]');
+  const composite = scores.length
+    ? scores.reduce((s, v, i) => {
+        const keys = ['toxic','severe_toxic','obscene','threat','insult','identity_hate'];
+        const w = { toxic:0.20, severe_toxic:0.30, obscene:0.05, threat:0.25, insult:0.08, identity_hate:0.12 };
+        return s + v * w[keys[i]];
+      }, 0)
+    : 0;
+  const color = thresholdColor(composite);
+
+  new Chart(canvas, {
+    type: 'radar',
+    data: {
+      labels: RADAR_LABELS,
+      datasets: [{
+        data: scores.map(v => +(v * 100).toFixed(1)),
+        backgroundColor: color + '22',
+        borderColor:     color,
+        borderWidth:     1.5,
+        pointBackgroundColor: color,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { stepSize: 25, font: { size: 9 }, color: '#9299a8', backdropColor: 'transparent' },
+          grid:        { color: '#dde1e7' },
+          angleLines:  { color: '#dde1e7' },
+          pointLabels: { font: { size: 9 }, color: '#5a6070' },
+        }
+      }
+    }
+  });
+}
+
+// Init existing server-rendered radar charts (they start hidden; init on open)
+// — no eager init needed, handled in toggleBreakdown.
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 </script>
 {% endblock %}

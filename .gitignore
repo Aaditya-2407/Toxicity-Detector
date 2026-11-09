@@ -1,10 +1,17 @@
 # Python
 venv/
+.venv/
 __pycache__/
 *.pyc
+*.pyo
+
+# macOS metadata
+.DS_Store
+._*
+*.DS_Store
 
 # Database
-app.db
+*.db
 
 # Large Model Files
 app/toxic_bert/model_files/
@@ -15,3 +22,6 @@ app/toxic_bert/model_files/
 
 # Environment
 .env
+
+# Instance folder (SQLite)
+instance/

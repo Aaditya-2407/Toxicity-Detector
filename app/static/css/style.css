@@ -1,11 +1,399 @@
-/* Add the fade-in animation for new comments */
+/* ============================================================
+   CyberGuard – design tokens & component styles
+   Color system is built around the three toxicity states.
+   Every visual decision below cites its purpose.
+   ============================================================ */
+
+/* ---- Tokens ------------------------------------------------ */
+:root {
+  /* Neutrals — cool-grey base, not pure white/black */
+  --bg:          #f4f5f7;
+  --surface:     #ffffff;
+  --border:      #dde1e7;
+  --text-primary: #1a1d23;
+  --text-secondary: #5a6070;
+  --text-muted:  #9299a8;
+
+  /* Brand — a single controlled teal accent; used only at key moments */
+  --accent:      #0d7f74;
+  --accent-light:#e6f4f2;
+
+  /* Threshold palette — the core visual language of the product */
+  --safe:        #1a9e5c;
+  --safe-bg:     #eaf7f1;
+  --caution:     #d4830a;
+  --caution-bg:  #fef4e3;
+  --danger:      #d93939;
+  --danger-bg:   #fdeaea;
+
+  /* Typography */
+  --font-body:   'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:   'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Radius — two values only: subtle for inputs/cards, rounder for badges */
+  --radius-card: 10px;
+  --radius-badge: 20px;
+
+  /* Elevation — only two levels */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.10);
+}
+
+/* ---- Reset & Base ----------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Navbar ----------------------------------------------- */
+/* Dark surface justified: navigation contrast against light content */
+.navbar {
+  background: #131720 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0.65rem 0;
+}
+.navbar-brand {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  color: #ffffff !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.navbar-brand::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.nav-link {
+  color: rgba(255,255,255,0.65) !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+.nav-link:hover, .nav-link.active {
+  color: #fff !important;
+}
+.navbar-text {
+  color: rgba(255,255,255,0.5) !important;
+  font-size: 0.8125rem;
+}
+
+/* ---- Cards ----------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+/* Elevated card — used only for the submit form */
+.card--elevated {
+  box-shadow: var(--shadow-md);
+}
+
+/* ---- Buttons --------------------------------------------- */
+.btn {
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 1.1rem;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #0a6b61;
+  border-color: #0a6b61;
+}
+.btn-outline-secondary {
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+.btn-demo {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.35rem 0.8rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-demo:hover { background: var(--border); }
+
+/* ---- Forms ----------------------------------------------- */
+.form-control, .form-select {
+  border-color: var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-control:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13,127,116,0.12);
+  outline: none;
+}
+.form-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ---- Live preview strip ---------------------------------- */
+#live-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg);
+  padding: 0.9rem 1rem;
+  margin-top: 0.75rem;
+  transition: border-color 0.3s;
+}
+#live-preview.state-safe    { border-color: var(--safe); }
+#live-preview.state-caution { border-color: var(--caution); }
+#live-preview.state-danger  { border-color: var(--danger); }
+
+#live-score-value {
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  /* colour is set by JS */
+}
+#live-score-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---- Score badge on cards -------------------------------- */
+.score-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-badge);
+  white-space: nowrap;
+}
+.score-badge.safe    { background: var(--safe-bg);    color: var(--safe); }
+.score-badge.caution { background: var(--caution-bg); color: var(--caution); }
+.score-badge.danger  { background: var(--danger-bg);  color: var(--danger); }
+
+/* ---- Score bar ------------------------------------------- */
+.score-bar-track {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.score-bar-fill.safe    { background: var(--safe); }
+.score-bar-fill.caution { background: var(--caution); }
+.score-bar-fill.danger  { background: var(--danger); }
+
+/* Category breakdown bars */
+.category-bars { margin-top: 0.75rem; }
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+}
+.category-label {
+  width: 110px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+.category-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.category-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.category-pct {
+  width: 36px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ---- Radar chart ----------------------------------------- */
+.radar-toggle-btn {
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+.radar-toggle-btn:hover { text-decoration: underline; }
+.radar-container {
+  max-width: 220px;
+  margin: 0.75rem auto 0;
+}
+
+/* ---- Comment card ---------------------------------------- */
+.comment-card {
+  animation: slideIn 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Legacy animation alias kept for compatibility */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.comment-body {
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+  margin-bottom: 0.75rem;
+}
+.comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.comment-author { font-weight: 600; color: var(--text-secondary); }
+
+/* ---- Filter bar ------------------------------------------ */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.filter-btn {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0.9rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.filter-btn:hover         { background: var(--bg); }
+.filter-btn.active        { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-btn.active-safe   { background: var(--safe-bg);    border-color: var(--safe);    color: var(--safe); }
+.filter-btn.active-caution{ background: var(--caution-bg); border-color: var(--caution); color: var(--caution); }
+.filter-btn.active-danger { background: var(--danger-bg);  border-color: var(--danger);  color: var(--danger); }
+
+/* ---- Leaderboard ----------------------------------------- */
+.leaderboard-medal { font-size: 1.1rem; }
+
+.lb-score-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+}
+.lb-score-pill.safe    { background: var(--safe-bg);    color: var(--safe); }
+.lb-score-pill.caution { background: var(--caution-bg); color: var(--caution); }
+.lb-score-pill.danger  { background: var(--danger-bg);  color: var(--danger); }
+
+.lb-bar-track {
+  width: 80px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+}
+.lb-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ---- Auth cards ------------------------------------------ */
+.auth-card {
+  max-width: 420px;
+  margin: 2.5rem auto;
+}
+.auth-card .card-body { padding: 2rem; }
+.auth-heading {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+.auth-subtext {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* ---- Utility --------------------------------------------- */
+.text-muted-sm {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+
+/* ---- Spinner --------------------------------------------- */
+/* Reuses Bootstrap's spinner; no custom needed */
+
+/* ---- Responsive ------------------------------------------ */
+@media (max-width: 576px) {
+  .category-label { width: 90px; }
+  .radar-container { max-width: 180px; }
 }
