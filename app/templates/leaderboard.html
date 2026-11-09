@@ -52,7 +52,7 @@
           <td class="pe-4" style="vertical-align:middle;">
             <div style="display:flex;align-items:center;gap:0.5rem;">
               <div class="lb-bar-track">
-                <div class="lb-bar-fill {{ cls }}" style="width:{{ pct }}%"></div>
+                <div class="lb-bar-fill {{ cls }}" style="width:{{ [pct, 100]|min }}%"></div>
               </div>
               <span class="text-muted-sm" style="font-size:0.7rem;font-family:var(--font-mono);">{{ pct }}%</span>
             </div>

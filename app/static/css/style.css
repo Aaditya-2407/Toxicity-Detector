@@ -30,9 +30,9 @@
   --font-body:   'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:   'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Radius — two values only: subtle for inputs/cards, rounder for badges */
-  --radius-card: 10px;
-  --radius-badge: 20px;
+  /* Radius — two values only: card/input share --radius-card; badges get --radius-badge */
+  --radius-card: 10px;   /* cards, inputs, buttons, preview strip */
+  --radius-badge: 20px;  /* score badges, filter pills */
 
   /* Elevation — only two levels */
   --shadow-sm:   0 1px 3px rgba(0,0,0,0.08);
@@ -72,7 +72,11 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  /* White dot: the threshold palette (green/amber/red) is reserved for
+     score states throughout the app — the brand mark must not reuse those
+     hues or suggest a score level. White on the dark navbar reads as a
+     clean identity mark without competing with score colours. */
+  background: rgba(255,255,255,0.85);
 }
 .nav-link {
   color: rgba(255,255,255,0.65) !important;
@@ -95,7 +99,8 @@ body {
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
 }
-/* Elevated card — used only for the submit form */
+/* Elevated card — used only for the submit form to lift the primary action
+   above the content feed, establishing a clear entry-point hierarchy. */
 .card--elevated {
   box-shadow: var(--shadow-md);
 }
@@ -104,7 +109,7 @@ body {
 .btn {
   font-size: 0.875rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-card); /* matches card radius; pills (filter-btn) use radius-badge */
   padding: 0.5rem 1.1rem;
   transition: opacity 0.15s, transform 0.1s;
 }
@@ -139,7 +144,7 @@ body {
 /* ---- Forms ----------------------------------------------- */
 .form-control, .form-select {
   border-color: var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card); /* consistent with card radius — two radii total */
   font-size: 0.9rem;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -350,6 +355,7 @@ body {
 .lb-bar-fill {
   height: 100%;
   border-radius: 3px;
+  max-width: 100%; /* guard against composite > 1.0 floating-point edge cases */
 }
 
 /* ---- Auth cards ------------------------------------------ */
